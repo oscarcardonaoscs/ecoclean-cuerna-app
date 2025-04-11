@@ -3,30 +3,60 @@ import { Table, Button, Nav } from "react-bootstrap";
 import { FaEdit, FaTrashAlt } from "react-icons/fa";
 
 const Productos = () => {
+  // Estado para la categoría seleccionada
   const [selectedCategory, setSelectedCategory] = useState("Tintorería");
-  const [productos, setProductos] = useState([
-    {
-      producto: "Blusa",
-      precio: 5.0,
-      precioExpress: 6.0,
-      tipo: "Pieza",
-      activo: true,
-    },
-    {
-      producto: "Camisa",
-      precio: 6.0,
-      precioExpress: 6.0,
-      tipo: "Peso",
-      activo: true,
-    },
-    {
-      producto: "Corbata",
-      precio: 7.0,
-      precioExpress: 6.0,
-      tipo: "Pieza",
-      activo: true,
-    },
-  ]);
+
+  // Datos de productos por sección
+  const productosPorSeccion = {
+    Tintorería: [
+      {
+        producto: "Blusa",
+        precio: 5.0,
+        precioExpress: 6.0,
+        tipo: "Pieza",
+        activo: true,
+      },
+      {
+        producto: "Camisa",
+        precio: 6.0,
+        precioExpress: 6.0,
+        tipo: "Peso",
+        activo: true,
+      },
+    ],
+    Lavandería: [
+      {
+        producto: "Pantalón",
+        precio: 4.0,
+        precioExpress: 5.0,
+        tipo: "Pieza",
+        activo: true,
+      },
+      {
+        producto: "Chaqueta",
+        precio: 7.0,
+        precioExpress: 8.0,
+        tipo: "Pieza",
+        activo: true,
+      },
+    ],
+    Planchado: [
+      {
+        producto: "Sábanas",
+        precio: 3.0,
+        precioExpress: 4.0,
+        tipo: "Pieza",
+        activo: true,
+      },
+      {
+        producto: "Toalla",
+        precio: 2.5,
+        precioExpress: 3.5,
+        tipo: "Pieza",
+        activo: true,
+      },
+    ],
+  };
 
   const handleCategoryChange = (category) => {
     setSelectedCategory(category);
@@ -35,6 +65,8 @@ const Productos = () => {
   const handleAddProduct = () => {
     alert("Agregar Producto");
   };
+
+  const productosSeleccionados = productosPorSeccion[selectedCategory];
 
   return (
     <div className="container-fluid">
@@ -96,7 +128,7 @@ const Productos = () => {
               </tr>
             </thead>
             <tbody>
-              {productos.map((producto, index) => (
+              {productosSeleccionados.map((producto, index) => (
                 <tr key={index}>
                   <td>{producto.producto}</td>
                   <td>{producto.precio.toFixed(2)}</td>
