@@ -72,3 +72,9 @@ body,
   left: 0 !important;
   right: auto !important;
 }
+
+.modal-header .close {
+  font-size: 1.5rem;
+  color: #000 !important; /* Forzar un color más oscuro */
+  opacity: 1; /* Asegurarse de que no tenga opacidad baja */
+}

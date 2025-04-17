@@ -1,72 +1,108 @@
-import React, { useState } from "react";
-import { Table, Button, Nav } from "react-bootstrap";
+import React, { useState, useEffect } from "react";
+import { Table, Button, Nav, Modal, Form } from "react-bootstrap";
 import { FaEdit, FaTrashAlt } from "react-icons/fa";
+import axios from "axios";
+import { Trash, X, Check } from "react-bootstrap-icons";
 
 const Productos = () => {
-  // Estado para la categoría seleccionada
-  const [selectedCategory, setSelectedCategory] = useState("Tintorería");
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [secciones, setSecciones] = useState([]);
+  const [productos, setProductos] = useState([]); // Lista de productos filtrados por sección
 
-  // Datos de productos por sección
-  const productosPorSeccion = {
-    Tintorería: [
-      {
-        producto: "Blusa",
-        precio: 5.0,
-        precioExpress: 6.0,
-        tipo: "Pieza",
-        activo: true,
-      },
-      {
-        producto: "Camisa",
-        precio: 6.0,
-        precioExpress: 6.0,
-        tipo: "Peso",
-        activo: true,
-      },
-    ],
-    Lavandería: [
-      {
-        producto: "Pantalón",
-        precio: 4.0,
-        precioExpress: 5.0,
-        tipo: "Pieza",
-        activo: true,
-      },
-      {
-        producto: "Chaqueta",
-        precio: 7.0,
-        precioExpress: 8.0,
-        tipo: "Pieza",
-        activo: true,
-      },
-    ],
-    Planchado: [
-      {
-        producto: "Sábanas",
-        precio: 3.0,
-        precioExpress: 4.0,
-        tipo: "Pieza",
-        activo: true,
-      },
-      {
-        producto: "Toalla",
-        precio: 2.5,
-        precioExpress: 3.5,
-        tipo: "Pieza",
-        activo: true,
-      },
-    ],
+  const [showModal, setShowModal] = useState(false);
+  const [newProduct, setNewProduct] = useState({
+    nombre: "",
+    precio: "",
+    precioExpress: "",
+    tipo: "Peso",
+    seccionId: "",
+  });
+
+  // Obtener las secciones del backend
+  useEffect(() => {
+    axios
+      .get("http://localhost:8000/secciones")
+      .then((response) => {
+        const seccionesData = response.data;
+        seccionesData.sort((a, b) => a.nombre.localeCompare(b.nombre));
+        setSecciones(seccionesData);
+
+        // Si hay secciones disponibles, seleccionamos la primera automáticamente
+        if (seccionesData.length > 0) {
+          const firstSeccionId = seccionesData[0].id;
+          setSelectedCategory(firstSeccionId);
+          fetchProductos(firstSeccionId); // Obtener los productos de la primera sección
+        }
+      })
+      .catch((error) => {
+        console.error("Hubo un error al obtener las secciones:", error);
+      });
+  }, []);
+
+  // Obtener los productos activos de la sección seleccionada
+  const fetchProductos = (seccionId) => {
+    axios
+      .get(
+        `http://localhost:8000/productos/?seccion_id=${seccionId}&activo=true`
+      ) // Filtrar por sección y productos activos
+      .then((response) => {
+        setProductos(response.data); // Actualizar el estado de productos
+      })
+      .catch((error) => {
+        console.error("Error al obtener los productos:", error);
+      });
   };
 
-  const handleCategoryChange = (category) => {
-    setSelectedCategory(category);
+  // Función que maneja el cambio de sección
+  const handleCategoryChange = (seccionId) => {
+    setSelectedCategory(seccionId); // Establecer la nueva categoría seleccionada
+    setNewProduct((prev) => ({
+      ...prev,
+      seccionId: seccionId,
+    }));
+    fetchProductos(seccionId); // Llamar a fetchProductos para actualizar los productos según la sección
   };
 
   const handleAddProduct = () => {
-    alert("Agregar Producto");
+    setShowModal(true);
   };
 
-  const productosSeleccionados = productosPorSeccion[selectedCategory];
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setNewProduct({
+      nombre: "",
+      precio: "",
+      precioExpress: "",
+      tipo: "Peso",
+      seccionId: "",
+    });
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewProduct((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleAgregarProducto = () => {
+    const productToAdd = {
+      ...newProduct,
+      seccion_id: newProduct.seccionId,
+    };
+
+    axios
+      .post("http://localhost:8000/productos/", productToAdd)
+      .then((response) => {
+        alert("Producto agregado con éxito!");
+        setShowModal(false);
+        fetchProductos(selectedCategory); // Actualiza los productos de la sección seleccionada
+      })
+      .catch((error) => {
+        console.error("Hubo un error al agregar el producto:", error);
+      });
+  };
 
   return (
     <div className="container-fluid">
@@ -81,36 +117,20 @@ const Productos = () => {
         <div className="card-header py-3">
           <Nav
             variant="tabs"
-            defaultActiveKey="Tintorería"
+            defaultActiveKey={selectedCategory}
             className="nav-tabs-custom"
           >
-            <Nav.Item>
-              <Nav.Link
-                eventKey="Tintorería"
-                onClick={() => handleCategoryChange("Tintorería")}
-                active={selectedCategory === "Tintorería"}
-              >
-                Tintorería
-              </Nav.Link>
-            </Nav.Item>
-            <Nav.Item>
-              <Nav.Link
-                eventKey="Lavandería"
-                onClick={() => handleCategoryChange("Lavandería")}
-                active={selectedCategory === "Lavandería"}
-              >
-                Lavandería
-              </Nav.Link>
-            </Nav.Item>
-            <Nav.Item>
-              <Nav.Link
-                eventKey="Planchado"
-                onClick={() => handleCategoryChange("Planchado")}
-                active={selectedCategory === "Planchado"}
-              >
-                Planchado
-              </Nav.Link>
-            </Nav.Item>
+            {secciones.map((seccion) => (
+              <Nav.Item key={seccion.id}>
+                <Nav.Link
+                  eventKey={seccion.id}
+                  onClick={() => handleCategoryChange(seccion.id)}
+                  active={selectedCategory === seccion.id}
+                >
+                  {seccion.nombre}
+                </Nav.Link>
+              </Nav.Item>
+            ))}
           </Nav>
         </div>
 
@@ -128,13 +148,19 @@ const Productos = () => {
               </tr>
             </thead>
             <tbody>
-              {productosSeleccionados.map((producto, index) => (
+              {productos.map((producto, index) => (
                 <tr key={index}>
-                  <td>{producto.producto}</td>
+                  <td>{producto.nombre}</td>
                   <td>{producto.precio.toFixed(2)}</td>
                   <td>{producto.precioExpress.toFixed(2)}</td>
                   <td>{producto.tipo}</td>
-                  <td>{producto.activo ? "Sí" : "No"}</td>
+                  <td>
+                    {producto.esActivo ? (
+                      <Check color="green" /> // Icono de check para activo
+                    ) : (
+                      <X color="red" /> // Icono de X para inactivo
+                    )}
+                  </td>
                   <td>
                     <Button variant="warning" size="sm">
                       <FaEdit /> Editar
@@ -151,6 +177,104 @@ const Productos = () => {
           </Table>
         </div>
       </div>
+
+      {/* Modal para agregar un producto */}
+      <Modal show={showModal} onHide={handleCloseModal}>
+        <Modal.Header>
+          <Modal.Title>Agregar Producto</Modal.Title>
+          <button
+            type="button"
+            className="close"
+            aria-label="Close"
+            onClick={handleCloseModal}
+            style={{
+              border: "none",
+              background: "transparent",
+              fontSize: "1.5rem",
+              color: "#000",
+            }}
+          >
+            <X />
+          </button>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group controlId="formNombre" className="mb-3">
+              <Form.Label>Nombre</Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="Ingrese el nombre del producto"
+                name="nombre"
+                value={newProduct.nombre}
+                onChange={handleInputChange}
+              />
+            </Form.Group>
+
+            <Form.Group controlId="formPrecio" className="mb-3">
+              <Form.Label>Precio</Form.Label>
+              <Form.Control
+                type="number"
+                step="0.01"
+                placeholder="Ingrese el precio"
+                name="precio"
+                value={newProduct.precio}
+                onChange={handleInputChange}
+              />
+            </Form.Group>
+
+            <Form.Group controlId="formPrecioExpress" className="mb-3">
+              <Form.Label>Precio Express</Form.Label>
+              <Form.Control
+                type="number"
+                step="0.01"
+                placeholder="Ingrese el precio express"
+                name="precioExpress"
+                value={newProduct.precioExpress}
+                onChange={handleInputChange}
+              />
+            </Form.Group>
+
+            <Form.Group controlId="formTipo" className="mb-3">
+              <Form.Label>Tipo</Form.Label>
+              <Form.Control
+                as="select"
+                name="tipo"
+                value={newProduct.tipo}
+                onChange={handleInputChange}
+              >
+                <option value="Peso">Peso</option>
+                <option value="Pieza">Pieza</option>
+              </Form.Control>
+            </Form.Group>
+
+            {/* Dropdown de Secciones */}
+            <Form.Group controlId="formSeccion" className="mb-3">
+              <Form.Label>Sección</Form.Label>
+              <Form.Control
+                as="select"
+                name="seccionId"
+                value={newProduct.seccionId}
+                onChange={handleInputChange}
+              >
+                <option value="">--Seleccionar sección--</option>
+                {secciones.map((seccion) => (
+                  <option key={seccion.id} value={seccion.id}>
+                    {seccion.nombre}
+                  </option>
+                ))}
+              </Form.Control>
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleCloseModal}>
+            Cancelar
+          </Button>
+          <Button variant="primary" onClick={handleAgregarProducto}>
+            Agregar
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };
