@@ -1,0 +1,37 @@
+/* NuevoPedido.css */
+
+/* Estilo para los productos en un grid */
+.productos-cards {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(200px, 1fr)
+  ); /* Ajusta a 4 productos por fila */
+  gap: 10px; /* Espacio entre las tarjetas */
+  padding: 10px;
+  margin: 0;
+}
+
+/* Estilo para cada tarjeta de producto */
+.productos-cards .card {
+  width: 100%; /* Asegura que las tarjetas ocupen el 100% del ancho de su columna */
+  margin: 0;
+  padding: 0;
+}
+
+/* Para pantallas pequeñas (menos de 768px) */
+@media (max-width: 768px) {
+  .productos-cards {
+    grid-template-columns: repeat(
+      2,
+      1fr
+    ); /* 2 productos por fila en pantallas pequeñas */
+  }
+}
+
+/* Para pantallas muy pequeñas (menos de 480px) */
+@media (max-width: 480px) {
+  .productos-cards {
+    grid-template-columns: 1fr; /* 1 producto por fila en pantallas muy pequeñas */
+  }
+}

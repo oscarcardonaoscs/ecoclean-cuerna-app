@@ -1,6 +1,8 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import MainLayout from "./components/MainLayout";
+import "bootstrap/dist/css/bootstrap.min.css"; // Bootstrap 5 CSS
 import "./App.css";
+
 // Páginas
 import NuevoPedido from "./pages/NuevoPedido";
 import EnProceso from "./pages/EnProceso";

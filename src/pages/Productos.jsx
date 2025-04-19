@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Table, Button, Nav, Modal, Form } from "react-bootstrap";
 import { FaEdit, FaTrashAlt } from "react-icons/fa";
 import axios from "axios";
-import { Trash, X, Check } from "react-bootstrap-icons";
+import { X, Check } from "react-bootstrap-icons";
 
 const Productos = () => {
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -27,7 +27,6 @@ const Productos = () => {
         seccionesData.sort((a, b) => a.nombre.localeCompare(b.nombre));
         setSecciones(seccionesData);
 
-        // Si hay secciones disponibles, seleccionamos la primera automáticamente
         if (seccionesData.length > 0) {
           const firstSeccionId = seccionesData[0].id;
           setSelectedCategory(firstSeccionId);
@@ -64,11 +63,7 @@ const Productos = () => {
   };
 
   const handleAddProduct = () => {
-    setShowModal(true);
-  };
-
-  const handleCloseModal = () => {
-    setShowModal(false);
+    // Limpiar el estado de newProduct cuando se abre el modal
     setNewProduct({
       nombre: "",
       precio: "",
@@ -76,6 +71,11 @@ const Productos = () => {
       tipo: "Peso",
       seccionId: "",
     });
+    setShowModal(true); // Abrir el modal
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
   };
 
   const handleInputChange = (e) => {
