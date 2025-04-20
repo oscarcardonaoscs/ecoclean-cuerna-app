@@ -5,140 +5,200 @@ import {
   Button,
   Form,
   InputGroup,
-  Dropdown,
   Nav,
+  ListGroup,
 } from "react-bootstrap";
-import { Search, Plus, Clock } from "react-bootstrap-icons";
+import { Plus, Clock, X, Pencil } from "react-bootstrap-icons";
 import axios from "axios";
-import AgregarClienteModal from "./AgregarClienteModal"; // Asegúrate de importar el modal
-import "./NuevoPedido.css"; // Asegúrate de importar el archivo CSS en tu componente
+import AgregarClienteModal from "./AgregarClienteModal";
+import "./NuevoPedido.css";
 
 const NuevoPedido = () => {
+  /* ─────────── estados principales ─────────── */
   const [selectedSeccion, setSelectedSeccion] = useState("");
   const [cliente, setCliente] = useState("");
+  const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
+  const [clientesEncontrados, setClientesEncontrados] = useState([]);
   const [formaPago, setFormaPago] = useState("");
+
   const [secciones, setSecciones] = useState([]);
   const [productos, setProductos] = useState([]);
-  const [showModal, setShowModal] = useState(false); // Estado para el Modal
+  const [showModal, setShowModal] = useState(false);
 
-  // Función para obtener las secciones desde la base de datos (API)
+  /* ─────────── utilidades API ─────────── */
   const fetchSecciones = async () => {
     try {
-      const response = await axios.get("http://localhost:8000/secciones/");
-      setSecciones(response.data);
-    } catch (error) {
-      console.error("Error al obtener las secciones:", error);
+      const { data } = await axios.get("http://localhost:8000/secciones/");
+      setSecciones(data);
+    } catch (err) {
+      console.error("Error al obtener secciones", err);
     }
   };
 
-  // Función para obtener los productos por sección (y activos)
   const fetchProductos = (seccionId) => {
     axios
       .get(
         `http://localhost:8000/productos/?seccion_id=${seccionId}&activo=true`
       )
-      .then((response) => {
-        setProductos(response.data); // Actualiza el estado de productos
-      })
-      .catch((error) => {
-        console.error("Error al obtener los productos:", error);
-      });
+      .then(({ data }) => setProductos(data))
+      .catch((err) => console.error("Error productos", err));
   };
 
-  // Llamada a la API cuando el componente se monta
-  useEffect(() => {
-    fetchSecciones();
-  }, []);
-
-  // Efecto para obtener productos cuando se selecciona una sección
-  useEffect(() => {
-    if (selectedSeccion) {
-      fetchProductos(selectedSeccion); // Obtener productos cuando cambia la sección
+  const buscarClientes = async (texto) => {
+    try {
+      const { data } = await axios.get("http://localhost:8000/clientes/", {
+        params: { search: texto },
+      });
+      setClientesEncontrados(data);
+    } catch (err) {
+      console.error("Error al buscar clientes", err);
     }
+  };
+
+  /* ─────────── efectos ─────────── */
+  useEffect(() => {
+    // Llamamos a la función async aquí dentro
+    fetchSecciones();
+  }, []); // <- solo al montar
+
+  useEffect(() => {
+    if (selectedSeccion) fetchProductos(selectedSeccion);
   }, [selectedSeccion]);
 
-  const handleSeccionChange = (id) => {
-    setSelectedSeccion(id);
+  // Buscador: solo busca si NO hay cliente elegido
+  useEffect(() => {
+    if (clienteSeleccionado) {
+      setClientesEncontrados([]);
+      return;
+    }
+    if (cliente.trim()) {
+      buscarClientes(cliente);
+    } else {
+      setClientesEncontrados([]);
+    }
+  }, [cliente, clienteSeleccionado]);
+
+  /* ─────────── handlers ─────────── */
+  const handleInputChange = (e) => {
+    setCliente(e.target.value);
+    setClienteSeleccionado(null); // al teclear se anula la selección
   };
 
-  // Manejar el evento de abrir el modal
-  const handleOpenModal = () => setShowModal(true);
+  const handleSelectCliente = (cli) => {
+    setCliente(cli.nombre);
+    setClienteSeleccionado(cli);
+    setClientesEncontrados([]); // ocultar lista
+  };
 
-  // Manejar el evento de cerrar el modal
-  const handleCloseModal = () => setShowModal(false);
+  const handleClearCliente = () => {
+    setCliente("");
+    setClienteSeleccionado(null);
+    setClientesEncontrados([]);
+  };
 
+  /* ─────────── UI ─────────── */
   return (
     <div className="container-fluid d-flex">
-      {/* Parte Izquierda */}
+      {/* IZQUIERDA */}
       <div className="left-section" style={{ width: "70%" }}>
-        <div className="navbar">
-          <Nav
-            variant="tabs"
-            defaultActiveKey={selectedSeccion}
-            className="nav-tabs-custom"
-          >
-            {secciones.map((seccion) => (
-              <Nav.Item key={seccion.id}>
-                <Nav.Link
-                  eventKey={seccion.id}
-                  onClick={() => handleSeccionChange(seccion.id)}
-                  active={selectedSeccion === seccion.id}
-                >
-                  {seccion.nombre}
-                </Nav.Link>
-              </Nav.Item>
-            ))}
-          </Nav>
-        </div>
-
-        {/* Mostrar productos en tarjetas - Estilo Grid */}
-        <div className="productos-cards">
-          {productos.length > 0 ? (
-            productos.map((producto) => (
-              <Card
-                key={producto.id}
-                style={{ width: "100%", marginBottom: "10px" }} // Ajusta el margen de cada tarjeta
+        <Nav variant="tabs" defaultActiveKey={selectedSeccion}>
+          {secciones.map((s) => (
+            <Nav.Item key={s.id}>
+              <Nav.Link
+                eventKey={s.id}
+                onClick={() => setSelectedSeccion(s.id)}
+                active={selectedSeccion === s.id}
               >
-                {/* Si no hay imagen, usar una imagen predeterminada */}
+                {s.nombre}
+              </Nav.Link>
+            </Nav.Item>
+          ))}
+        </Nav>
+
+        <div className="productos-cards">
+          {productos.length ? (
+            productos.map((p) => (
+              <Card key={p.id} className="mb-2">
                 <Card.Img
                   variant="top"
-                  src={producto.imagen || "/path/to/default-image.jpg"}
+                  src={p.imagen || "/path/to/default-image.jpg"}
                 />
                 <Card.Body>
-                  <Card.Title>{producto.nombre}</Card.Title>
-                  <Card.Text>Precio: ${producto.precio}</Card.Text>
+                  <Card.Title>{p.nombre}</Card.Title>
+                  <Card.Text>Precio: ${p.precio}</Card.Text>
                 </Card.Body>
               </Card>
             ))
           ) : (
-            <p>No hay productos disponibles para esta sección.</p>
+            <p>No hay productos disponibles.</p>
           )}
         </div>
       </div>
 
-      {/* Parte Derecha */}
+      {/* DERECHA */}
       <div className="right-section" style={{ width: "30%" }}>
         <Accordion defaultActiveKey="0">
-          {/* Sección Cliente */}
           <Accordion.Item eventKey="0">
             <Accordion.Header>Seleccionar Cliente</Accordion.Header>
             <Accordion.Body>
-              <InputGroup>
+              <InputGroup className="mb-2">
+                {/* input de búsqueda */}
                 <Form.Control
-                  type="text"
-                  placeholder="Buscar Cliente"
+                  placeholder="Buscar cliente"
                   value={cliente}
-                  onChange={(e) => setCliente(e.target.value)}
+                  onChange={handleInputChange}
                 />
-                <Button
-                  variant="outline-secondary"
-                  onClick={handleOpenModal} // Abre el modal al hacer clic
-                >
-                  <Plus />
-                </Button>
+
+                {/* Botón X (solo si hay texto) */}
+                {cliente && (
+                  <Button
+                    variant="outline-danger"
+                    onClick={handleClearCliente}
+                    className="ms-1"
+                  >
+                    <X />
+                  </Button>
+                )}
+
+                {/* Botón +  ó  lápiz, según haya o no cliente elegido */}
+                {clienteSeleccionado ? (
+                  // ───── hay cliente → mostrar lápiz (editar)
+                  <Button
+                    variant="outline-primary"
+                    onClick={() => alert("Editar cliente")}
+                    className="ms-1"
+                  >
+                    <Pencil />
+                  </Button>
+                ) : (
+                  // ───── no hay cliente → mostrar +
+                  <Button
+                    variant="outline-secondary"
+                    onClick={() => setShowModal(true)}
+                    className="ms-1"
+                  >
+                    <Plus />
+                  </Button>
+                )}
               </InputGroup>
+
+              {/* Lista solo si NO hay cliente elegido */}
+              {!clienteSeleccionado && clientesEncontrados.length > 0 && (
+                <ListGroup>
+                  {clientesEncontrados.map((c) => (
+                    <ListGroup.Item
+                      key={c.id}
+                      action
+                      onClick={() => handleSelectCliente(c)}
+                    >
+                      {c.nombre}, {c.email}, {c.telefono}
+                    </ListGroup.Item>
+                  ))}
+                </ListGroup>
+              )}
+
               <div className="mt-3">
-                <label>Fecha de Hoy</label>
+                <label>Fecha de hoy</label>
                 <InputGroup>
                   <Form.Control
                     type="date"
@@ -153,72 +213,20 @@ const NuevoPedido = () => {
             </Accordion.Body>
           </Accordion.Item>
 
-          {/* Sección Pago */}
           <Accordion.Item eventKey="1">
             <Accordion.Header>Configurar Pago</Accordion.Header>
-            <Accordion.Body>
-              <Form>
-                <Form.Group controlId="formaPago">
-                  <Form.Label>Forma de Pago</Form.Label>
-                  <Dropdown onSelect={(e) => setFormaPago(e)}>
-                    <Dropdown.Toggle variant="outline-primary">
-                      {formaPago || "Seleccionar Forma de Pago"}
-                    </Dropdown.Toggle>
-                    <Dropdown.Menu>
-                      <Dropdown.Item eventKey="Efectivo">
-                        Efectivo
-                      </Dropdown.Item>
-                      <Dropdown.Item eventKey="Tarjeta">Tarjeta</Dropdown.Item>
-                      <Dropdown.Item eventKey="Transferencia">
-                        Transferencia
-                      </Dropdown.Item>
-                    </Dropdown.Menu>
-                  </Dropdown>
-                </Form.Group>
-
-                <Form.Group controlId="subtotal">
-                  <Form.Label>Subtotal</Form.Label>
-                  <Form.Control type="number" value="100" readOnly />
-                </Form.Group>
-
-                <Form.Group controlId="descuento">
-                  <Form.Label>Descuento</Form.Label>
-                  <Form.Control type="number" value="0" readOnly />
-                </Form.Group>
-
-                <Form.Group controlId="costoEnvio">
-                  <Form.Label>Costo de Envío</Form.Label>
-                  <Form.Control type="number" value="0" readOnly />
-                </Form.Group>
-
-                <Form.Group controlId="impuesto">
-                  <Form.Label>Impuesto</Form.Label>
-                  <Form.Control type="number" value="0" readOnly />
-                </Form.Group>
-
-                <Form.Group controlId="total">
-                  <Form.Label>Total</Form.Label>
-                  <Form.Control type="number" value="100" readOnly />
-                </Form.Group>
-              </Form>
-            </Accordion.Body>
+            <Accordion.Body>{/* ...contenidos de pago... */}</Accordion.Body>
           </Accordion.Item>
         </Accordion>
       </div>
 
-      {/* Modal de Agregar Cliente */}
-      <AgregarClienteModal show={showModal} handleClose={handleCloseModal} />
+      {/* MODAL */}
+      <AgregarClienteModal
+        show={showModal}
+        handleClose={() => setShowModal(false)}
+      />
     </div>
   );
-};
-
-// Estilo para las tarjetas de productos en un grid
-const styles = {
-  productosGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", // Ajusta la cantidad de productos por fila
-    gap: "20px",
-  },
 };
 
 export default NuevoPedido;
