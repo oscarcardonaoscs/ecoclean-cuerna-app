@@ -8,9 +8,17 @@ import {
   Nav,
   ListGroup,
 } from "react-bootstrap";
-import { Plus, Clock, X, Pencil } from "react-bootstrap-icons";
+import {
+  Plus,
+  Clock,
+  X,
+  Pencil,
+  PencilSquare,
+  Trash,
+} from "react-bootstrap-icons";
 import axios from "axios";
 import AgregarClienteModal from "./AgregarClienteModal";
+import AgregarProductoModal from "./AgregarProductoModal";
 import "./NuevoPedido.css";
 
 const NuevoPedido = () => {
@@ -24,6 +32,11 @@ const NuevoPedido = () => {
   const [secciones, setSecciones] = useState([]);
   const [productos, setProductos] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [productoModal, setProductoModal] = useState(null); // producto seleccionado
+  const [showProdModal, setShowProdModal] = useState(false); // visibilidad modal
+
+  const [itemsOrden, setItemsOrden] = useState([]);
+  const [productoEditando, setProductoEditando] = useState(null);
 
   /* ─────────── utilidades API ─────────── */
   const fetchSecciones = async () => {
@@ -96,6 +109,34 @@ const NuevoPedido = () => {
     setClientesEncontrados([]);
   };
 
+  const abrirModalProducto = (producto, fila = null) => {
+    setProductoModal(producto);
+    setProductoEditando(fila); // si es edición, se guarda la fila completa
+    setShowProdModal(true);
+  };
+
+  const agregarOActualizarItem = (item) => {
+    if (productoEditando) {
+      // Modo edición: reemplazar fila existente
+      setItemsOrden((prev) =>
+        prev.map((fila) =>
+          fila.rowId === productoEditando.rowId ? { ...fila, ...item } : fila
+        )
+      );
+    } else {
+      // Modo agregar: añadir nueva fila con rowId único
+      setItemsOrden((prev) => [...prev, { ...item, rowId: Date.now() }]);
+    }
+
+    // Limpia estado de edición
+    setProductoEditando(null);
+  };
+
+  // Eliminar item
+  const handleEliminarItem = (rowId) => {
+    setItemsOrden((prev) => prev.filter((item) => item.rowId !== rowId));
+  };
+
   /* ─────────── UI ─────────── */
   return (
     <div className="container-fluid d-flex">
@@ -118,7 +159,12 @@ const NuevoPedido = () => {
         <div className="productos-cards">
           {productos.length ? (
             productos.map((p) => (
-              <Card key={p.id} className="mb-2">
+              <Card
+                key={p.id}
+                className="mb-2"
+                style={{ cursor: "pointer" }}
+                onClick={() => abrirModalProducto(p)}
+              >
                 <Card.Img
                   variant="top"
                   src={p.imagen || "/path/to/default-image.jpg"}
@@ -209,6 +255,65 @@ const NuevoPedido = () => {
                     <Clock />
                   </Button>
                 </InputGroup>
+                {itemsOrden.length > 0 && (
+                  <div className="mt-3">
+                    <h6 className="mb-2">Productos en la orden</h6>
+
+                    <table className="table table-sm table-striped mb-0">
+                      <thead>
+                        <tr>
+                          <th style={{ width: "15%" }}>Cantidad</th>
+                          <th style={{ width: "45%" }}>Producto</th>
+                          <th style={{ width: "15%" }}>Importe</th>
+                          <th style={{ width: "12%" }} className="text-center">
+                            Editar
+                          </th>
+                          <th style={{ width: "13%" }} className="text-center">
+                            Eliminar
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {itemsOrden.map((item) => (
+                          <tr key={item.rowId}>
+                            <td>{item.piezas}</td>
+                            <td>{item.nombre}</td>
+
+                            {/* Importe */}
+                            <td>${(item.piezas * item.precio).toFixed(2)}</td>
+
+                            {/* Botón Editar */}
+                            <td className="text-center">
+                              <Button
+                                size="sm"
+                                variant="outline-primary"
+                                onClick={() =>
+                                  abrirModalProducto(
+                                    { id: item.id, nombre: item.nombre },
+                                    item
+                                  )
+                                }
+                              >
+                                <PencilSquare />
+                              </Button>
+                            </td>
+
+                            {/* Botón Eliminar */}
+                            <td className="text-center">
+                              <Button
+                                size="sm"
+                                variant="outline-danger"
+                                onClick={() => handleEliminarItem(item.rowId)}
+                              >
+                                <Trash />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </Accordion.Body>
           </Accordion.Item>
@@ -224,6 +329,17 @@ const NuevoPedido = () => {
       <AgregarClienteModal
         show={showModal}
         handleClose={() => setShowModal(false)}
+      />
+      {/* MODAL Agregar Producto*/}
+      <AgregarProductoModal
+        show={showProdModal}
+        handleClose={() => {
+          setShowProdModal(false);
+          setProductoEditando(null);
+        }}
+        producto={productoModal}
+        onAdd={agregarOActualizarItem}
+        editarItem={productoEditando}
       />
     </div>
   );

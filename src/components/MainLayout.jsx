@@ -1,12 +1,5 @@
 import React, { useState } from "react";
-import {
-  Navbar,
-  Container,
-  NavDropdown,
-  Offcanvas,
-  Button,
-  Dropdown,
-} from "react-bootstrap";
+import { Navbar, Container, NavDropdown, Dropdown } from "react-bootstrap";
 import { NavLink } from "react-router-dom";
 import { List } from "react-bootstrap-icons"; // icono de 3 líneas
 
@@ -107,7 +100,7 @@ function MainLayout({ children }) {
       <hr className="m-0" />
 
       <main style={{ minHeight: "calc(100vh - 70px)" }}>
-        <div className="max-w-screen-lg mx-auto px-4">{children}</div>
+        <div className="max-w-screen-lg mx-auto px-1">{children}</div>
       </main>
     </div>
   );
