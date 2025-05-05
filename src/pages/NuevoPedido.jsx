@@ -1,44 +1,34 @@
+// NuevoPedido.jsx
 import React, { useState, useEffect } from "react";
-import {
-  Accordion,
-  Card,
-  Button,
-  Form,
-  InputGroup,
-  Nav,
-  ListGroup,
-} from "react-bootstrap";
-import {
-  Plus,
-  Clock,
-  X,
-  Pencil,
-  PencilSquare,
-  Trash,
-} from "react-bootstrap-icons";
+import { Nav, Card } from "react-bootstrap";
 import axios from "axios";
 import AgregarClienteModal from "./AgregarClienteModal";
 import AgregarProductoModal from "./AgregarProductoModal";
+import PanelPedidoConfig from "../components/PanelPedidoConfig";
 import "./NuevoPedido.css";
 
 const NuevoPedido = () => {
-  /* ─────────── estados principales ─────────── */
   const [selectedSeccion, setSelectedSeccion] = useState("");
   const [cliente, setCliente] = useState("");
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [clientesEncontrados, setClientesEncontrados] = useState([]);
   const [formaPago, setFormaPago] = useState("");
+  const [montoPagado, setMontoPagado] = useState(0);
+  const [montoRecibido, setMontoRecibido] = useState(0);
 
+  const [fechaEntrega, setFechaEntrega] = useState(new Date());
+  const [horaEntrega, setHoraEntrega] = useState(new Date());
+  const [express, setExpress] = useState(false);
+  const [nota, setNota] = useState("");
   const [secciones, setSecciones] = useState([]);
   const [productos, setProductos] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [productoModal, setProductoModal] = useState(null); // producto seleccionado
-  const [showProdModal, setShowProdModal] = useState(false); // visibilidad modal
+  const [productoModal, setProductoModal] = useState(null);
+  const [showProdModal, setShowProdModal] = useState(false);
 
   const [itemsOrden, setItemsOrden] = useState([]);
   const [productoEditando, setProductoEditando] = useState(null);
 
-  /* ─────────── utilidades API ─────────── */
   const fetchSecciones = async () => {
     try {
       const { data } = await axios.get("http://localhost:8000/secciones/");
@@ -68,17 +58,23 @@ const NuevoPedido = () => {
     }
   };
 
-  /* ─────────── efectos ─────────── */
+  const fechaEntregaCompleta = () => {
+    const fecha = new Date(fechaEntrega);
+    const hora = new Date(horaEntrega);
+    fecha.setHours(hora.getHours());
+    fecha.setMinutes(hora.getMinutes());
+    fecha.setSeconds(0);
+    return fecha;
+  };
+
   useEffect(() => {
-    // Llamamos a la función async aquí dentro
     fetchSecciones();
-  }, []); // <- solo al montar
+  }, []);
 
   useEffect(() => {
     if (selectedSeccion) fetchProductos(selectedSeccion);
   }, [selectedSeccion]);
 
-  // Buscador: solo busca si NO hay cliente elegido
   useEffect(() => {
     if (clienteSeleccionado) {
       setClientesEncontrados([]);
@@ -91,16 +87,15 @@ const NuevoPedido = () => {
     }
   }, [cliente, clienteSeleccionado]);
 
-  /* ─────────── handlers ─────────── */
   const handleInputChange = (e) => {
     setCliente(e.target.value);
-    setClienteSeleccionado(null); // al teclear se anula la selección
+    setClienteSeleccionado(null);
   };
 
   const handleSelectCliente = (cli) => {
     setCliente(cli.nombre);
     setClienteSeleccionado(cli);
-    setClientesEncontrados([]); // ocultar lista
+    setClientesEncontrados([]);
   };
 
   const handleClearCliente = () => {
@@ -109,35 +104,120 @@ const NuevoPedido = () => {
     setClientesEncontrados([]);
   };
 
+  const redondear4 = (valor) => {
+    return parseFloat(valor.toFixed(4));
+  };
+
+  const calcularTotal = () => {
+    return redondear4(
+      itemsOrden.reduce((sum, item) => sum + item.piezas * item.precio, 0)
+    );
+  };
+
+  const calcularSubtotal = () => {
+    return redondear4(calcularTotal() / 1.16);
+  };
+
+  const calcularIVA = () => {
+    return redondear4(calcularTotal() - calcularSubtotal());
+  };
+
+  const resetFormulario = () => {
+    setCliente("");
+    setClienteSeleccionado(null);
+    setItemsOrden([]);
+    setFormaPago("");
+    setNota("");
+    setExpress(false);
+    setMontoPagado(0);
+    setMontoRecibido(0);
+    const ahora = new Date();
+    const manana = new Date(ahora);
+    manana.setDate(ahora.getDate() + 1);
+    setFechaEntrega(manana);
+    setHoraEntrega(new Date());
+  };
+  const handleGuardarPedido = async () => {
+    try {
+      if (!clienteSeleccionado) {
+        alert("Debe seleccionar un cliente antes de finalizar la venta.");
+        return;
+      }
+      if (itemsOrden.length === 0) {
+        alert("Debe agregar al menos un producto al pedido.");
+        return;
+      }
+
+      const pedidoPayload = {
+        cliente_id: clienteSeleccionado.id,
+        fecha_entrega: fechaEntregaCompleta().toISOString(),
+        subtotal: calcularSubtotal(),
+        descuento: 0,
+        envio: 0,
+        iva: calcularIVA(),
+        total: calcularTotal(),
+        forma_pago: formaPago || "Efectivo",
+        estatus: "Pendiente",
+        es_express: express,
+        notas: nota || "",
+        partidas: itemsOrden.map((item) => ({
+          producto_id: item.id,
+          cantidad: item.piezas,
+          precio_unitario: item.precio,
+          importe: item.piezas * item.precio,
+          notas: null,
+        })),
+        pagos: [
+          {
+            forma_pago: formaPago || "Efectivo",
+            monto_pagado: montoPagado,
+            monto_recibido: montoRecibido,
+            monto_cambio: Math.max(montoRecibido - montoPagado, 0),
+            referencia_pago: null,
+          },
+        ],
+      };
+
+      console.log(
+        "Payload que se envía:",
+        JSON.stringify(pedidoPayload, null, 2)
+      );
+      const { data } = await axios.post(
+        "http://localhost:8000/pedidos/",
+        pedidoPayload
+      );
+
+      alert(`Pedido guardado exitosamente. Folio: ${data.folio}`);
+      resetFormulario();
+    } catch (error) {
+      console.error("Error guardando pedido:", error);
+      alert("Error al finalizar la venta.");
+    }
+  };
+
   const abrirModalProducto = (producto, fila = null) => {
     setProductoModal(producto);
-    setProductoEditando(fila); // si es edición, se guarda la fila completa
+    setProductoEditando(fila);
     setShowProdModal(true);
   };
 
   const agregarOActualizarItem = (item) => {
     if (productoEditando) {
-      // Modo edición: reemplazar fila existente
       setItemsOrden((prev) =>
         prev.map((fila) =>
           fila.rowId === productoEditando.rowId ? { ...fila, ...item } : fila
         )
       );
     } else {
-      // Modo agregar: añadir nueva fila con rowId único
       setItemsOrden((prev) => [...prev, { ...item, rowId: Date.now() }]);
     }
-
-    // Limpia estado de edición
     setProductoEditando(null);
   };
 
-  // Eliminar item
   const handleEliminarItem = (rowId) => {
     setItemsOrden((prev) => prev.filter((item) => item.rowId !== rowId));
   };
 
-  /* ─────────── UI ─────────── */
   return (
     <div className="container-fluid d-flex">
       {/* IZQUIERDA */}
@@ -183,154 +263,42 @@ const NuevoPedido = () => {
 
       {/* DERECHA */}
       <div className="right-section" style={{ width: "30%" }}>
-        <Accordion defaultActiveKey="0">
-          <Accordion.Item eventKey="0">
-            <Accordion.Header>Seleccionar Cliente</Accordion.Header>
-            <Accordion.Body>
-              <InputGroup className="mb-2">
-                {/* input de búsqueda */}
-                <Form.Control
-                  placeholder="Buscar cliente"
-                  value={cliente}
-                  onChange={handleInputChange}
-                />
-
-                {/* Botón X (solo si hay texto) */}
-                {cliente && (
-                  <Button
-                    variant="outline-danger"
-                    onClick={handleClearCliente}
-                    className="ms-1"
-                  >
-                    <X />
-                  </Button>
-                )}
-
-                {/* Botón +  ó  lápiz, según haya o no cliente elegido */}
-                {clienteSeleccionado ? (
-                  // ───── hay cliente → mostrar lápiz (editar)
-                  <Button
-                    variant="outline-primary"
-                    onClick={() => alert("Editar cliente")}
-                    className="ms-1"
-                  >
-                    <Pencil />
-                  </Button>
-                ) : (
-                  // ───── no hay cliente → mostrar +
-                  <Button
-                    variant="outline-secondary"
-                    onClick={() => setShowModal(true)}
-                    className="ms-1"
-                  >
-                    <Plus />
-                  </Button>
-                )}
-              </InputGroup>
-
-              {/* Lista solo si NO hay cliente elegido */}
-              {!clienteSeleccionado && clientesEncontrados.length > 0 && (
-                <ListGroup>
-                  {clientesEncontrados.map((c) => (
-                    <ListGroup.Item
-                      key={c.id}
-                      action
-                      onClick={() => handleSelectCliente(c)}
-                    >
-                      {c.nombre}, {c.email}, {c.telefono}
-                    </ListGroup.Item>
-                  ))}
-                </ListGroup>
-              )}
-
-              <div className="mt-3">
-                <label>Fecha de hoy</label>
-                <InputGroup>
-                  <Form.Control
-                    type="date"
-                    value={new Date().toISOString().split("T")[0]}
-                    readOnly
-                  />
-                  <Button variant="outline-secondary">
-                    <Clock />
-                  </Button>
-                </InputGroup>
-                {itemsOrden.length > 0 && (
-                  <div className="mt-3">
-                    <h6 className="mb-2">Productos en la orden</h6>
-
-                    <table className="table table-sm table-striped mb-0">
-                      <thead>
-                        <tr>
-                          <th style={{ width: "15%" }}>Cantidad</th>
-                          <th style={{ width: "45%" }}>Producto</th>
-                          <th style={{ width: "15%" }}>Importe</th>
-                          <th style={{ width: "12%" }} className="text-center">
-                            Editar
-                          </th>
-                          <th style={{ width: "13%" }} className="text-center">
-                            Eliminar
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {itemsOrden.map((item) => (
-                          <tr key={item.rowId}>
-                            <td>{item.piezas}</td>
-                            <td>{item.nombre}</td>
-
-                            {/* Importe */}
-                            <td>${(item.piezas * item.precio).toFixed(2)}</td>
-
-                            {/* Botón Editar */}
-                            <td className="text-center">
-                              <Button
-                                size="sm"
-                                variant="outline-primary"
-                                onClick={() =>
-                                  abrirModalProducto(
-                                    { id: item.id, nombre: item.nombre },
-                                    item
-                                  )
-                                }
-                              >
-                                <PencilSquare />
-                              </Button>
-                            </td>
-
-                            {/* Botón Eliminar */}
-                            <td className="text-center">
-                              <Button
-                                size="sm"
-                                variant="outline-danger"
-                                onClick={() => handleEliminarItem(item.rowId)}
-                              >
-                                <Trash />
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </Accordion.Body>
-          </Accordion.Item>
-
-          <Accordion.Item eventKey="1">
-            <Accordion.Header>Configurar Pago</Accordion.Header>
-            <Accordion.Body>{/* ...contenidos de pago... */}</Accordion.Body>
-          </Accordion.Item>
-        </Accordion>
+        <PanelPedidoConfig
+          cliente={cliente}
+          clienteSeleccionado={clienteSeleccionado}
+          clientesEncontrados={clientesEncontrados}
+          onInputChange={handleInputChange}
+          onSelectCliente={handleSelectCliente}
+          onClearCliente={handleClearCliente}
+          onAbrirAgregarCliente={() => setShowModal(true)}
+          itemsOrden={itemsOrden}
+          onEditar={abrirModalProducto}
+          onEliminar={handleEliminarItem}
+          onReset={() => setItemsOrden([])}
+          onFinalizarVenta={handleGuardarPedido}
+          fechaEntrega={fechaEntrega}
+          setFechaEntrega={setFechaEntrega}
+          horaEntrega={horaEntrega}
+          setHoraEntrega={setHoraEntrega}
+          express={express}
+          setExpress={setExpress}
+          nota={nota}
+          setNota={setNota}
+          formaPago={formaPago}
+          setFormaPago={setFormaPago}
+          montoPagado={montoPagado}
+          setMontoPagado={setMontoPagado}
+          montoRecibido={montoRecibido}
+          setMontoRecibido={setMontoRecibido}
+        />
       </div>
 
-      {/* MODAL */}
+      {/* MODALS */}
       <AgregarClienteModal
         show={showModal}
         handleClose={() => setShowModal(false)}
       />
-      {/* MODAL Agregar Producto*/}
+
       <AgregarProductoModal
         show={showProdModal}
         handleClose={() => {
